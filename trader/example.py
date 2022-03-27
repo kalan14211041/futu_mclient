@@ -113,7 +113,7 @@ def is_valid_quantity(code, quantity, price):
         print('Failed in getting valid qty', code, data)
         return False
     max_can_buy = data['max_cash_buy'][0]
-    max_can_sell = data['max_sell_short'][0]
+    max_can_sell = data['max_position_sell'][0]
     if quantity > 0:
         return quantity < max_can_buy
     elif quantity < 0:
@@ -142,6 +142,28 @@ def test_buy_trade(code):
     if ret != RET_OK:
         print('Failed in placing order', data)
 
+def test_sell_9618():
+    print('Start selling 9618')
+    # SELL HK.09618
+    TARGET_STOCK = 'HK.09618'
+    while True:
+        refresh_cache = False
+        time.sleep(3 if refresh_cache else 1)
+        ret, data = trade_context.position_list_query(code=TARGET_STOCK, refresh_cache=refresh_cache)
+        if ret == RET_OK:
+            position_cache = data
+            if position_cache.shape[0] > 0:
+                if position_cache['code'][0] == TARGET_STOCK:
+                    can_sell_qty = position_cache['can_sell_qty'][0]
+                    if can_sell_qty > 50:
+                        close_quantity = int(can_sell_qty/50) * 50
+                        ask, bid = get_ask_and_bid(TARGET_STOCK)
+                        if is_valid_quantity(TARGET_STOCK, -close_quantity, bid):
+                            ret, data = trade_context.place_order(price=bid, qty=quantity, code=TARGET_STOCK, trd_side=TrdSide.SELL,
+                                    order_type=OrderType.NORMAL, trd_env=TRADING_ENVIRONMENT, remark=f'Sell {close_quantity}')
+                            if ret != RET_OK:
+                                print('平仓失败：', data)
+
 ############################ Callbacks ############################
 def on_init():
     if not unlock_trade():
@@ -160,3 +182,5 @@ if __name__ == '__main__':
     price_step(EXAMPLE_CODE)
     list_position()
     account_info()
+
+    test_sell_9618()
